@@ -69,3 +69,9 @@ TARGET_LINK_LIBRARIES(
     glm::glm
 )
 
+add_custom_target(copy-files ALL
+    COMMAND ${CMAKE_COMMAND} -E copy
+    ${freeglut_BINARY_DIR}/bin/freeglutd.dll
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
