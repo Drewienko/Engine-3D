@@ -55,7 +55,7 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 INCLUDE_DIRECTORIES(
-    ${PROJECT_NAME} "${CMAKE_CURRENT_BINARY_DIR}/_deps/freeglut-src/include"
+    ${PROJECT_NAME} "${freeglut_SOURCE_DIR}/include"
 )
 
 
