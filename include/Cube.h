@@ -1,15 +1,18 @@
 #ifndef CUBE_H
 #define CUBE_H
-
+#include <GL/glew.h>
 #include <vector>
 #include <array>
 #include "DrawableObject.h"
 #include "TransformableObject.h"
-#include <GL/gl.h>
+
+
 
 class Cube : public DrawableObject, public TransformableObject {
 public:
+    GLuint VAO, VBO, EBO;
     Cube(float size, float x, float y, float z, const float* color);
+    ~Cube();
     void draw() override;
     void translate(const glm::vec3& direction) override;
     void rotate(float angle, const glm::vec3& axis) override;

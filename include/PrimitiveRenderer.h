@@ -1,6 +1,6 @@
 #ifndef PRIMITIVE_RENDERER_H
 #define PRIMITIVE_RENDERER_H
-
+#include <GL/glew.h>
 #include <GL/freeglut.h>
 
 #include <glm/glm.hpp>

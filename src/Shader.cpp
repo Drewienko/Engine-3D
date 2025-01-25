@@ -1,51 +1,10 @@
 #include "Shader.h"
 
 
-PFNGLCREATESHADERPROC glCreateShader = nullptr;
-PFNGLSHADERSOURCEPROC glShaderSource = nullptr;
-PFNGLCOMPILESHADERPROC glCompileShader = nullptr;
-PFNGLCREATEPROGRAMPROC glCreateProgram = nullptr;
-PFNGLATTACHSHADERPROC glAttachShader = nullptr;
-PFNGLLINKPROGRAMPROC glLinkProgram = nullptr;
-PFNGLUSEPROGRAMPROC glUseProgram = nullptr;
-PFNGLGETPROGRAMIVPROC glGetProgramiv = nullptr;
-PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog = nullptr;
-PFNGLGETSHADERIVPROC glGetShaderiv = nullptr;
-PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog = nullptr;
-PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = nullptr;
-PFNGLUNIFORM1FPROC glUniform1f = nullptr;
-PFNGLUNIFORM1IPROC glUniform1i = nullptr;
-PFNGLDELETESHADERPROC glDeleteShader = nullptr;
-PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = nullptr;
-PFNGLUNIFORM3FVPROC glUniform3fv = nullptr;
-void loadOpenGLFunctions() {
-    glCreateShader = (PFNGLCREATESHADERPROC)glutGetProcAddress("glCreateShader");
-    glShaderSource = (PFNGLSHADERSOURCEPROC)glutGetProcAddress("glShaderSource");
-    glCompileShader = (PFNGLCOMPILESHADERPROC)glutGetProcAddress("glCompileShader");
-    glCreateProgram = (PFNGLCREATEPROGRAMPROC)glutGetProcAddress("glCreateProgram");
-    glAttachShader = (PFNGLATTACHSHADERPROC)glutGetProcAddress("glAttachShader");
-    glLinkProgram = (PFNGLLINKPROGRAMPROC)glutGetProcAddress("glLinkProgram");
-    glUseProgram = (PFNGLUSEPROGRAMPROC)glutGetProcAddress("glUseProgram");
-    glGetProgramiv = (PFNGLGETPROGRAMIVPROC)glutGetProcAddress("glGetProgramiv");
-    glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)glutGetProcAddress("glGetProgramInfoLog");
-    glGetShaderiv = (PFNGLGETSHADERIVPROC)glutGetProcAddress("glGetShaderiv");
-    glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)glutGetProcAddress("glGetShaderInfoLog");
-    glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)glutGetProcAddress("glGetUniformLocation");
-    glUniform1f = (PFNGLUNIFORM1FPROC)glutGetProcAddress("glUniform1f");
-    glUniform1i = (PFNGLUNIFORM1IPROC)glutGetProcAddress("glUniform1i");
-    glDeleteShader = (PFNGLDELETESHADERPROC)glutGetProcAddress("glDeleteShader");
-    glUniformMatrix4fv = (PFNGLUNIFORMMATRIX4FVPROC)glutGetProcAddress("glUniformMatrix4fv");
-    glUniform3fv = (PFNGLUNIFORM3FVPROC)glutGetProcAddress("glUniform3fv");
-
-    // Check if all functions were loaded
-    if (!glCreateShader || !glShaderSource || !glCompileShader || !glCreateProgram ||
-        !glAttachShader || !glLinkProgram || !glUseProgram || !glGetProgramiv ||
-        !glGetProgramInfoLog || !glGetShaderiv || !glGetShaderInfoLog ||
-        !glGetUniformLocation || !glUniform1f || !glUniform1i) {
-        std::cerr << "Failed to load OpenGL functions!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+Shader::Shader() : ID(0) {
+    // No shader is created; ID remains 0 to indicate an uninitialized state
 }
+
 
 // Constructor: Compiles and links shaders
 Shader::Shader(const char* vertexCode, const char* fragmentCode) {

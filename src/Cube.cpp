@@ -1,8 +1,9 @@
 #include "Cube.h"
 #include "PrimitiveRenderer.h"
+#include <glm/gtx/string_cast.hpp>
 
-Cube::Cube(float size, float x, float y, float z, const float* color)
-{
+Cube::Cube(float size, float x, float y, float z, const float* color) {
+    // Define vertices for a cube centered at (x, y, z)
     vertices = {
         x - size, y - size, z - size,
         x + size, y - size, z - size,
@@ -15,12 +16,12 @@ Cube::Cube(float size, float x, float y, float z, const float* color)
     };
 
     indices = {
-        0, 1, 2,  2, 3, 0,
-        4, 5, 6,  6, 7, 4,
-        0, 1, 5,  5, 4, 0,
-        2, 3, 7,  7, 6, 2,
-        0, 3, 7,  7, 4, 0,
-        1, 2, 6,  6, 5, 1
+        0, 1, 2, 2, 3, 0, // Front
+        4, 5, 6, 6, 7, 4, // Back
+        0, 1, 5, 5, 4, 0, // Bottom
+        2, 3, 7, 7, 6, 2, // Top
+        0, 3, 7, 7, 4, 0, // Left
+        1, 2, 6, 6, 5, 1  // Right
     };
 
     for (int i = 0; i < 8; ++i) {
@@ -29,12 +30,43 @@ Cube::Cube(float size, float x, float y, float z, const float* color)
         colors.push_back(color[2]);
     }
 
-    for (int i = 0; i < 6; ++i) {
-        textures[i] = 0; 
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
+    // Vertex positions
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+
+    // Initialize textures with 0 (no texture)
+    textures.fill(0);
+}
+
+Cube::~Cube() {
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
+}
+
+void Cube::setTextureForSide(int side, GLuint textureID) {
+    if (side >= 0 && side < 6) {
+        textures[side] = textureID;
     }
 }
 
 void Cube::draw() {
+    glBindVertexArray(VAO);
+
     for (int i = 0; i < 6; ++i) {
         if (textures[i] != 0) {
             glEnable(GL_TEXTURE_2D);
@@ -45,26 +77,13 @@ void Cube::draw() {
             glColor3f(colors[0], colors[1], colors[2]);
         }
 
-        glBegin(GL_TRIANGLES);
-        for (int j = 0; j < 6; ++j) {
-            int vertexIndex = indices[i * 6 + j] * 3;
-            float texCoordX = (j == 1 || j == 2 || j == 4) ? 1.0f : 0.0f;
-            float texCoordY = (j >= 2 && j <= 4) ? 1.0f : 0.0f;
-            glTexCoord2f(texCoordX, texCoordY);
-            glVertex3f(vertices[vertexIndex], vertices[vertexIndex + 1], vertices[vertexIndex + 2]);
-        }
-        glEnd();
+        // Draw each face (2 triangles per face, 6 vertices total)
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(i * 6 * sizeof(unsigned int)));
     }
 
-    glEnable(GL_TEXTURE_2D); 
+    glBindVertexArray(0);
 }
 
-
-void Cube::setTextureForSide(int side, GLuint textureID) {
-    if (side >= 0 && side < 6) {
-        textures[side] = textureID;
-    }
-}
 
 void Cube::translate(const glm::vec3& direction) {
     for (size_t i = 0; i < vertices.size(); i += 3) {

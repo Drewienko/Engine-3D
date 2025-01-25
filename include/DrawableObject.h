@@ -3,6 +3,7 @@
 
 #include "GameObject.h"
 #include "PrimitiveRenderer.h"
+#include "Shader.h"
 #include <cmath>
 
 /**

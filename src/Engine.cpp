@@ -17,6 +17,7 @@ Observer* observer = nullptr;
 
 Cube* texturedCube = nullptr;
 std::vector<Cube*> cubes;
+
 float rotationAngle = 0.0f;
 Wall* testWall = nullptr;
 
@@ -26,17 +27,198 @@ Wall* testCeiling = nullptr;
 
 GLfloat light1Position[] = { -10.0f, 10.0f, 10.0f, 1.0f };
 
+GLuint depthMapFBO;
+GLuint depthMap;
+const unsigned int shadowWidth = 1024;  // Shadow map resolution
+const unsigned int shadowHeight = 1024;
+glm::mat4 viewMatrix;
+glm::mat4 projectionMatrix;
+glm::mat4 lightSpaceMatrix;// Transformation from world to light space
+void updateLightSpaceMatrix();
+Shader standardShader;
+Shader shadowShader;
+void renderScene();
+void renderDebugQuad(GLuint texture);
+
+
+
+// Updated Shadow Vertex Shader
+const char* shadowVertexShaderCode = R"(
+#version 330 core
+layout(location = 0) in vec3 aPos;
+uniform mat4 lightSpaceMatrix;
+uniform mat4 model;
+void main() {
+    gl_Position = lightSpaceMatrix * model * vec4(aPos, 1.0);
+}
+)";
+
+// Updated Shadow Fragment Shader
+const char* shadowFragmentShaderCode = R"(
+#version 330 core
+void main() {
+    // Depth-only rendering
+}
+)";
+
+// Updated Standard Vertex Shader
+const char* standardVertexShaderCode = R"(
+#version 330 core
+layout(location = 0) in vec3 aPos;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+uniform mat4 lightSpaceMatrix;
+
+out vec4 FragPosLightSpace;
+
+void main() {
+    FragPosLightSpace = lightSpaceMatrix * model * vec4(aPos, 1.0);
+    gl_Position = projection * view * model * vec4(aPos, 1.0);
+}
+)";
+
+// Updated Standard Fragment Shader
+const char* standardFragmentShaderCode = R"(
+#version 330 core
+in vec4 FragPosLightSpace;
+uniform sampler2D shadowMap;
+out vec4 FragColor;
+
+float calculateShadow(vec4 fragPosLightSpace) {
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+
+    float bias = 0.005;
+    return (currentDepth - bias > closestDepth) ? 0.3 : 1.0;
+}
+
+void main() {
+    float shadow = calculateShadow(FragPosLightSpace);
+    FragColor = vec4(vec3(shadow), 1.0);
+}
+)";
+
+
+
+void Engine::initShadowMap() {
+    glGenFramebuffers(1, &depthMapFBO);
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, shadowWidth, shadowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    GLfloat borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "Framebuffer is not complete!" << std::endl;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Engine::displayCallback() {
+    // Shadow Map Pass
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glViewport(0, 0, shadowWidth, shadowHeight);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    shadowShader.use();
+    shadowShader.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
+    renderScene(); // Render scene for shadow map
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Main Rendering Pass
+    glViewport(0, 0, windowWidth, windowHeight);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    standardShader.use();
+    standardShader.setMat4("view", glm::value_ptr(observer->getViewMatrix()));
+    standardShader.setMat4("projection", glm::value_ptr(projectionMatrix));
+    standardShader.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    standardShader.setInt("shadowMap", 1);
+
+    renderScene(); // Render the final scene with shadows
+
+    glutSwapBuffers();
+}
+
+void renderDebugQuad(GLuint texture) {
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f);
+    glTexCoord2f(1.0f, 0.0f); glVertex2f(1.0f, -1.0f);
+    glTexCoord2f(1.0f, 1.0f); glVertex2f(1.0f, 1.0f);
+    glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f, 1.0f);
+    glEnd();
+}
+
+void renderScene() {
+    glBegin(GL_TRIANGLES);
+    glColor3f(1.0f, 0.0f, 0.0f); // Red
+    glVertex3f(-0.5f, -0.5f, -1.0f);
+    glColor3f(0.0f, 1.0f, 0.0f); // Green
+    glVertex3f(0.5f, -0.5f, -1.0f);
+    glColor3f(0.0f, 0.0f, 1.0f); // Blue
+    glVertex3f(0.0f, 0.5f, -1.0f);
+    glEnd();
+}
+
+void updateLightSpaceMatrix() {
+    glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 7.5f);
+    glm::mat4 lightView = glm::lookAt(
+        glm::vec3(-2.0f, 4.0f, -1.0f),
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f)
+    );
+    lightSpaceMatrix = lightProjection * lightView;
+    std::cout << "Light-Space Matrix:\n" << glm::to_string(lightSpaceMatrix) << std::endl;
+}
+
+
+
+
 Engine::Engine(int argc, char** argv, int width, int height, const char* title) {
     glutInit(&argc, argv);
+    
+    
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
     glutInitWindowSize(width, height);
     glutCreateWindow(title);
-    
+    GLenum err = glewInit();
+    if (err != GLEW_OK) {
+        std::cerr << "GLEW Initialization failed: " << glewGetErrorString(err) << std::endl;
+        //return -1;
+    }
+    //loadFramebufferFunctions();
+    //loadOpenGLFunctions();
+
+
+    standardShader = Shader(standardVertexShaderCode, standardFragmentShaderCode);
+
+    shadowShader = Shader(shadowVertexShaderCode, shadowFragmentShaderCode);
+
+
     initSettings();
 
     observer = new Observer(glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-   
+
     const float cubeColor[] = { 0.5f, 0.5f, 0.5f };
     GLuint woodTexture = BitmapHandler::loadBitmapFromFile("textures/wood.jpg");
 
@@ -58,7 +240,7 @@ Engine::Engine(int argc, char** argv, int width, int height, const char* title) 
     testWall->rotateAround(90, glm::vec3(1.0f, 0.0f, 0.0f));
 
     testFloor = new Wall(0.0f, -10.0f, 0.0f, 15.0f, 15.0f, wallTexture);
-   testFloor->rotateAround(90, glm::vec3(1.0f, 0.0f, 0.0f));
+    testFloor->rotateAround(90, glm::vec3(1.0f, 0.0f, 0.0f));
 
     //testCeiling = new Wall(0.0f, 15.0f, 0.0f, 15.0f, 15.0f, wallTexture);
     //testCeiling->rotate(90, glm::vec3(1.0f, 1.0f, -1.0f));
@@ -87,7 +269,10 @@ void Engine::initSettings() {
 
     initLighting();
     glShadeModel(shadingMode);
+    initShadowMap();
 }
+
+
 
 void Engine::initLighting() {
     glEnable(GL_LIGHTING);
@@ -96,7 +281,7 @@ void Engine::initLighting() {
     GLfloat ambientLight[] = { 0.05f, 0.05f, 0.05f, 1.0f };
     GLfloat diffuseLight[] = { 0.8f, 0.8f, 0.8f, 1.0f };
     GLfloat specularLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    GLfloat lightPosition[] = { 0.0f, 10.0f, 0.0f, 1.0f };
+    GLfloat lightPosition[] = { 5.0f, 10.0f, 5.0f, 1.0f };
 
     glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
@@ -105,7 +290,7 @@ void Engine::initLighting() {
 
 
     glEnable(GL_LIGHT1);
-    GLfloat light1Position[] = { 2.0f, 5.0f, 2.0f, 1.0f };
+    GLfloat light1Position[] = { 0.0f, 10.0f, 0.0f, 1.0f };
     GLfloat light1Diffuse[] = { 1.0f, 0.8f, 0.6f, 1.0f };
     GLfloat light1Specular[] = { 1.0f, 0.9f, 0.7f, 1.0f };
     GLfloat spotDirection[] = { 0.0f, -1.0f, 0.0f };
@@ -117,54 +302,11 @@ void Engine::initLighting() {
     glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, spotDirection);
     glLightf(GL_LIGHT1, GL_SPOT_EXPONENT, 10.0f);
 
+    
     glEnable(GL_COLOR_MATERIAL);
 }
 
-void Engine::displayCallback() {
-    // glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glLoadMatrixf(glm::value_ptr(observer->getViewMatrix()));
 
-
-    GLfloat lightPosition[] = { 5.0f, 10.0f, 5.0f, 1.0f };
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-
-    GLfloat light1Position[] = { 0.0f, 10.0f, 0.0f, 1.0f };
-    glLightfv(GL_LIGHT1, GL_POSITION, light1Position);
-
-    glPushMatrix();
-    glDisable(GL_TEXTURE_2D);
-    glTranslatef(0.0f, 10.0f, 0.0f);
-    glColor3f(1.0f, 1.0f, 0.8f);
-    glutSolidSphere(0.2f, 16, 16);
-    glPopMatrix();
-
-
-    GLfloat floorAmbient[] = { 0.1f, 0.1f, 0.1f, 1.0f };
-    GLfloat floorDiffuse[] = { 0.6f, 0.6f, 0.6f, 1.0f };
-    GLfloat floorSpecular[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-    GLfloat floorShininess = 10.0f;
-
-    glMaterialfv(GL_FRONT, GL_AMBIENT, floorAmbient);
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, floorDiffuse);
-    glMaterialfv(GL_FRONT, GL_SPECULAR, floorSpecular);
-    glMaterialf(GL_FRONT, GL_SHININESS, floorShininess);
-
-
-    testWall->draw();
-    testFloor->draw();
-
-    //testCeiling->draw();
-
-    //glPushMatrix();
-   // glRotatef(rotationAngle, 0.0f, 1.0f, 0.0f);
-    for (Cube* cube : cubes) {
-        cube->draw();
-    }
-    // glPopMatrix();
-    setClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glutSwapBuffers();
-}
 
 
 void Engine::keyboardCallback(unsigned char key, int x, int y) {
@@ -193,10 +335,10 @@ void Engine::keyboardCallback(unsigned char key, int x, int y) {
     else if (key == 'k') {
         testWall->translate(glm::vec3(0.0f, 0.0f, speed));
     }
-    else if (key == 'j') { 
-        testWall->translate(glm::vec3(-speed, 0.0f,  0.0f));
+    else if (key == 'j') {
+        testWall->translate(glm::vec3(-speed, 0.0f, 0.0f));
     }
-    else if (key == 'l') { 
+    else if (key == 'l') {
         testWall->translate(glm::vec3(speed, 0.0f, 0.0f));
     }
     else if (key == 27) { // ESC
@@ -211,6 +353,16 @@ void Engine::keyboardCallback(unsigned char key, int x, int y) {
         shadingMode = GL_SMOOTH;
         glShadeModel(shadingMode);
         std::cout << "Gouraud Shading" << std::endl;
+    }
+    else if (key == 'b') {
+        glm::vec3 point = observer->getPosition();
+        float cubeColor[] = { 0.5f, 0.5f, 0.5f };
+        Cube* cube = new Cube(1.0, point.x, point.y, point.z, cubeColor);
+        glm::vec3 direction = 3.0f * glm::normalize(observer->getTarget() - point);
+
+        cube->translate(direction);
+        cubes.push_back(cube);
+
     }
 
     glutPostRedisplay();
@@ -238,10 +390,13 @@ void Engine::mouseMotionCallback(int x, int y) {
 
     int deltaX = x - lastMouseX;
     int deltaY = y - lastMouseY;
-
+    glm::vec3 point = observer->getPosition();
+    observer->translate(-point);
     observer->rotate(deltaX * 0.1f, glm::vec3(0.0f, 1.0f, 0.0f));
+    observer->translate(point);
+    observer->translate(-point);
     observer->rotate(deltaY * 0.1f, glm::vec3(1.0f, 0.0f, 0.0f));
-
+    observer->translate(point);
     lastMouseX = x;
     lastMouseY = y;
 
@@ -254,18 +409,18 @@ void Engine::reshapeCallback(int w, int h) {
 }
 
 void Engine::timerCallback(int value) {
-    rotationAngle += 1.0f; 
+    rotationAngle += 1.0f;
     if (rotationAngle >= 360.0f) {
         rotationAngle -= 360.0f;
     }
 
-    
 
-    
+
+
     for (int i = 0; i < cubes.size(); i++) {
         glm::vec3 axis = glm::vec3(0.0f, 1.0f, 0.0f);
         glm::vec3 point = glm::vec3(i * 0.2f, 0.0f, i * 0.1f);
-        cubes[i]->rotatePoint(1.0f, axis, point);
+        //cubes[i]->rotatePoint(1.0f, axis, point);
     }
     glutPostRedisplay();
     glutTimerFunc(1000 / 60, timerCallback, value); // 60 FPS

@@ -2,11 +2,11 @@
 #define SHADER_H
 
 #include <string>
+#include <GL/glew.h>
 #include <GL/freeglut.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <GL/glext.h>
 #include <iostream>
 
 
@@ -17,6 +17,7 @@ public:
     GLuint ID; // Program ID
 
     // Constructor: Compiles and links the shader program
+    Shader();
     Shader(const char* vertexCode, const char* fragmentCode);
    
     // Activate the shader program

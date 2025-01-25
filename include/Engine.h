@@ -2,12 +2,14 @@
 #define ENGINE_H
 
 #include <iostream>
-#include <GL/freeglut.h>
 
+#include <GL/glew.h>
+#include <GL/freeglut.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include "PrimitiveRenderer.h"
 #include "Observer.h"
@@ -24,6 +26,11 @@ public:
     static void setClearColor(float r, float g, float b, float a = 1.0f);
 
 private:
+    
+
+
+    void initShadowMap();  // New method to initialize shadow mapping
+
     static bool isPerspective;
     static int windowWidth;
     static int windowHeight;
@@ -31,7 +38,6 @@ private:
 
     void initSettings();
     void initLighting();
-    void initShaders();
     static void displayCallback();
     static void keyboardCallback(unsigned char key, int x, int y);
     static void reshapeCallback(int w, int h);

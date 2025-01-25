@@ -33,6 +33,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(stb)
 
 
+
 project ("Engine-3D")
 
 set(SOURCE_FILES
@@ -43,6 +44,7 @@ set(SOURCE_FILES
     Observer
     BitMapHandler
     Wall
+    Shader
 )
 
 
@@ -62,19 +64,19 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 INCLUDE_DIRECTORIES(
+    ${PROJECT_NAME} "${CMAKE_SOURCE_DIR}/include"
     ${PROJECT_NAME} "${freeglut_SOURCE_DIR}/include"
     ${PROJECT_NAME} "${stb_SOURCE_DIR}"
 )
+
+link_directories("${CMAKE_SOURCE_DIR}/lib")
 
 
 TARGET_LINK_LIBRARIES(
     ${PROJECT_NAME} PRIVATE
     freeglut
-)
-
-TARGET_LINK_LIBRARIES(
-    ${PROJECT_NAME} PRIVATE
     glm::glm
+    "${CMAKE_SOURCE_DIR}/lib/glew32.lib"
 )
 
 add_custom_target(copy-files ALL
