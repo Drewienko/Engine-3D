@@ -1,5 +1,5 @@
 ﻿
-cmake_minimum_required (VERSION 3.11)
+cmake_minimum_required (VERSION 3.20)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
@@ -86,32 +86,36 @@ TARGET_LINK_LIBRARIES(
 )
 
 
-add_custom_command(
-    TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/shaders
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
-)
+if(EXISTS "${CMAKE_SOURCE_DIR}/shaders")
+    add_custom_command(
+        TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
+    )
+endif()
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/textures")
+    add_custom_command(
+        TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/textures
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/textures
+    )
+endif()
+
+
 
 add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/textures
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>/textures
-)
-
-
-
-add_custom_command(
-    TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    ${freeglut_BINARY_DIR}/bin/freeglutd.dll
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:freeglut>
     $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )
 
 add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_SOURCE_DIR}/lib/glew32.dll
     $<TARGET_FILE_DIR:${PROJECT_NAME}>/
 )

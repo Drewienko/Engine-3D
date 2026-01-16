@@ -10,12 +10,12 @@
 *.userosscache
 *.sln.docstates
 
+out/
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
 # Mono auto generated files
 mono_crash.*
-docs
 # Build results
 [Bb]uild/
 [Dd]ebug/
@@ -265,7 +265,6 @@ ServiceFabricBackup/
 *.mdf
 *.ldf
 *.ndf
-
 # Business Intelligence projects
 *.rdl.data
 *.bim.layout
