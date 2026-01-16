@@ -1,7 +1,7 @@
 # Game Engine (OpenGL)
 
 A custom 3D game engine written in C++ using OpenGL 4.3.
-This project was written for **Podstawy grafiki komputerowej 1**.
+This project was written for **Podstawy grafiki komputerowej 1** at **Kielce University of Technology**.
 
 ![Gameplay Demo](docs/gameplay.gif)
 | Dynamic Shadows | Multiple Lights |
